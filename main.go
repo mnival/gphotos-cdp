@@ -84,6 +84,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	time.Sleep(5 * time.Second)
 	if err := chromedp.Run(ctx,
 		chromedp.ActionFunc(s.firstNav),
 		chromedp.ActionFunc(s.navN(*nItemsFlag)),
@@ -255,6 +256,7 @@ func (s *Session) login(ctx context.Context) error {
 // 2) if the last session marked what was the most recent downloaded photo, it navigates to it
 // 3) otherwise it jumps to the end of the timeline (i.e. the oldest photo)
 func (s *Session) firstNav(ctx context.Context) error {
+	defer time.Sleep(5 * time.Second)
 	if err := s.setFirstItem(ctx); err != nil {
 		return err
 	}
@@ -439,7 +441,7 @@ func navLeft(ctx context.Context) error {
 	muNavWaiting.Lock()
 	navWaiting = true
 	muNavWaiting.Unlock()
-	t := time.NewTimer(time.Minute)
+	t := time.NewTimer(time.Second)
 	select {
 	case <-navDone:
 		if !t.Stop() {
@@ -534,6 +536,7 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 			return "", fmt.Errorf("hit deadline while downloading in %q", s.dlDir)
 		}
 
+	Retry:
 		entries, err := ioutil.ReadDir(s.dlDir)
 		if err != nil {
 			return "", err
@@ -555,7 +558,9 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 			continue
 		}
 		if len(fileEntries) > 1 {
-			return "", fmt.Errorf("more than one file (%d) in download dir %q", len(fileEntries), s.dlDir)
+			fmt.Printf("more than one file (%d) in download dir %q", len(fileEntries), s.dlDir)
+			fmt.Printf("%v\n", fileEntries)
+			goto Retry
 		}
 		if !started {
 			if len(fileEntries) > 0 {
@@ -678,8 +683,10 @@ func (s *Session) navN(N int) func(context.Context) error {
 				break
 			}
 
-			if err := navLeft(ctx); err != nil {
-				return fmt.Errorf("error at %v: %v", location, err)
+			err = errors.New("placeholder")
+			for err != nil {
+				fmt.Printf("HACK: error at %v: %v\n", location, err)
+				err = navLeft(ctx)
 			}
 		}
 		return nil
